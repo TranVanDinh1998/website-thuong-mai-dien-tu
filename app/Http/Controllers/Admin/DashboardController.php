@@ -4,22 +4,22 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use App\Product;
-use App\Collection;
-use App\CollectionProduct;
-use App\ProductImage;
-use App\Category;
-use App\Order;
-use App\OrderDetail;
-use App\Producer;
-use App\TagProduct;
-use App\Review;
-use App\User;
-use App\Address;
-use App\Ward;
-use App\District;
-use App\Province;
-use App\Contact;
+use App\Models\Product;
+use App\Models\Collection;
+use App\Models\CollectionProduct;
+use App\Models\ProductImage;
+use App\Models\Category;
+use App\Models\Order;
+use App\Models\OrderDetail;
+use App\Models\Producer;
+use App\Models\TagProduct;
+use App\Models\Review;
+use App\Models\User;
+use App\Models\Address;
+use App\Models\Ward;
+use App\Models\District;
+use App\Models\Province;
+use App\Models\Contact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -31,19 +31,20 @@ use Illuminate\Support\Str;
 
 class DashboardController extends Controller
 {
-    public function __construct()
+    public function __construct(Product $product, Order $order, User $user)
     {
+        $this->user = $user;
         $this->middleware('auth:admin');
+        $this->product = $product;
+        $this->order = $order;
     }
-    public function index(Request $request)
+    public function index()
     {
-        $count_view = Product::notDelete()->sum('view');
-        $count_user = User::notDelete()->count();
-        $count_sale = Order::notDelete()->done()->sum('total');
-        $count_order = Order::notDelete()->count();
-        $categories = Category::notDelete()->active()->get();
-        $collections = Collection::notDelete()->active()->get();
-        $products = Product::notDelete()
+        $count_view = $this->product->sum('view');
+        $count_user = $this->user->count();
+        $count_sale = $this->order->done()->sum('total');
+        $count_order = $this->order->count();
+        $products = $this->product
             ->select(
                 'id',
                 'name',
@@ -67,8 +68,8 @@ class DashboardController extends Controller
             var day_data = [';
         for ($i = 0; $i < 7; $i++) {
             $day = Carbon::now()->startOfWeek()->addDay($i)->toDateString();
-            $sum_sale = Order::notDelete()->active()->where('create_date', $day)->done()->sum('total');
-            $sum_pending = Order::notDelete()->active()->where('create_date', $day)->notDone()->sum('total');
+            $sum_sale = $this->order->active()->where('created_at', $day)->done()->sum('total');
+            $sum_pending = $this->order->active()->where('created_at', $day)->notDone()->sum('total');
             $daily[] = array('day' => $day, 'sale' => $sum_sale, 'pending' => $sum_pending);
         }
         // print_r($daily);
@@ -106,8 +107,8 @@ class DashboardController extends Controller
             $begin_day = Carbon::now()->startOfMonth()->addMonth($i)->toDateString();
             $end_day = Carbon::now()->endOfMonth()->addMonth($i)->toDateString();
             // echo $begin_day.'-'.$end_day.'<br>';
-            $sum_sale = Order::notDelete()->active()->whereBetween('create_date', [$begin_day, $end_day])->done()->sum('total');
-            $sum_cancel = Order::notDelete()->active()->whereBetween('create_date', [$begin_day, $end_day])->inActive()->sum('total');
+            $sum_sale = $this->order->active()->whereBetween('created_at', [$begin_day, $end_day])->done()->sum('total');
+            $sum_cancel = $this->order->active()->whereBetween('created_at', [$begin_day, $end_day])->inActive()->sum('total');
             $monthly[] = array('day' => $end_day, 'sale' => $sum_sale, 'cancel' => $sum_cancel);
         }
         foreach ($monthly as $month) {
@@ -139,7 +140,7 @@ class DashboardController extends Controller
             $begin_day = Carbon::now()->startOfYear()->subYear($i)->toDateString();
             $end_day = Carbon::now()->endOfYear()->subYear($i)->toDateString();
             $year = Carbon::now()->subYear($i)->year;
-            $sum_sale = Order::notDelete()->active()->whereBetween('create_date', [$begin_day, $end_day])->done()->sum('total');
+            $sum_sale = $this->order->active()->whereBetween('created_at', [$begin_day, $end_day])->done()->sum('total');
             $yearly[] = array('year' => $year, 'sale' => $sum_sale);
         }
         foreach ($yearly as $year) {
@@ -161,7 +162,7 @@ class DashboardController extends Controller
             });
         </script>";
 
-        return view('admin.dashboard', [
+        return view('pages.admin.dashboard.index', [
             // count
             'count_view' => $count_view,
             'count_user' => $count_user,
@@ -172,8 +173,6 @@ class DashboardController extends Controller
             // products
             'products' => $products,
             // categories
-            'categories' => $categories,
-            'collections' => $collections,
 
             // chart
             'daily_chart' => $daily_chart,

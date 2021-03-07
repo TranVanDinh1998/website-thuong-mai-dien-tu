@@ -5,14 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use App\Collection;
-use App\order;
-use App\Product;
-use App\User;
-use App\Address;
-use App\Ward;
-use App\District;
-use App\OrderDetail;
-use App\Province;
+use App\Http\Requests\OrderRequest;
+use App\Models\Order;
+use App\Models\Product;
+use App\Models\User;
+use App\Models\Address;
+use App\Models\Ward;
+use App\Models\District;
+use App\Models\OrderDetail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\File;
@@ -22,29 +22,27 @@ use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
-    public function __construct()
+    public function __construct(Order $order, OrderDetail $orderDetail, Product $product)
     {
+        $this->product = $product;
+        $this->order = $order;
         $this->middleware('auth:admin');
+        $this->orderDetail = $orderDetail;
     }
+    /**
+     * Display a listing of the resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
     public function index(Request $request)
     {
-        $orders = Order::notDelete()->notDone()
+        $orders = $this->order->notDone()
             ->status($request)->sortId($request)->active()
             ->sortTotal($request)->sortDate($request)->sortPaid($request);
-        $count_order = 0;
-        $view = 0;
-        $count_order = $orders->count();
-        if ($request->has('view')) {
-            $view = $request->view;
-        } else {
-            $view = 10;
-        }
+        $orders_count = $orders->count();
+        $view = $request->has('view') ? $request->view : 10;
         $orders = $orders->paginate($view);
-        // address
-        $addresses = Address::get();
-        $wards = Ward::get();
-        $districts = District::get();
-        $provinces = Province::get();
+
         // filter
         $sort_id = $request->sort_id;
         $status = $request->status;
@@ -53,16 +51,12 @@ class OrderController extends Controller
         $sort_paid = $request->sort_paid;
         // user
         $user = Auth::guard('admin')->user();
-        return view('admin.order.index', [
+        return view('pages.admin.order.index', [
             // order
             'orders' => $orders,
-            'count_order' => $count_order,
+            'orders_count' => $orders_count,
             'view' => $view,
-            // address
-            'addresses' => $addresses,
-            'wards' => $wards,
-            'districts' => $districts,
-            'provinces' => $provinces,
+
             // filter
             'sort_id' => $sort_id,
             'sort_total' => $sort_total,
@@ -74,118 +68,79 @@ class OrderController extends Controller
 
         ]);
     }
-    public function doActivate($id)
-    {
-        $order = Order::find($id);
-        foreach ($order->order_details as $detail) {
-            $product = null;
-            $product = Product::find($detail->product_id);
-            $product->remaining -= $detail->quantity;
-            if (!$product->save()) {
-                return back()->with('error', 'Error occurred!');
-            }
-        }
-        $order->is_actived = 1;
-        if ($order->save()) {
-            return back()->with('success', 'Order #' . $order->id . ' has been activated.');
-        } else {
-            return back()->with('error', 'Error occurred!');
-        }
-    }
 
-    public function doDeactivate($id)
+    /**
+     * Verify an item.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function verify($id, $verified)
     {
-        $order = Order::find($id);
-        if ($order->is_paid == 1) {
-            return back()->with('error', 'Order #' . $order->id . ' has already been paid.');
-        } else {
-            foreach ($order->order_details as $detail) {
+        //
+        $order = $this->order->find($id);
+        $verify = $order->update([
+            'verified' => $verified,
+        ]);
+        if ($verified == 0) {
+            foreach ($order->orderDetails as $detail) {
                 $product = null;
-                $product = Product::find($detail->product_id);
-                $product->remaining += $detail->quantity;
-                if (!$product->save()) {
-                    return back()->with('error', 'Error occurred!');
-                }
+                $product = $this->product->find($detail->product_id);
+                $product = $product->update(['remaining' => $product->remaining + $detail->quantity]);
             }
-            $order->is_actived = 0;
-            if ($order->save()) {
-                return back()->with('success', 'Order #' . $order->id . ' has been deactivated.');
-            } else {
-                return back()->with('error', 'Error occurred!');
+            return back()->with('success', 'Hóa đơn #' . $id . ' đã được bật .');
+        } else {
+            foreach ($order->orderDetails as $detail) {
+                $product = null;
+                $product = $this->product->find($detail->product_id);
+                $product = $product->update(['remaining' => $product->remaining - $detail->quantity]);
             }
+            return back()->with('success', 'Hóa đơn #' . $id . ' đã được tắt.');
         }
     }
 
-    public function doConfirm($id)
+    public function comfirm($id, $confirmed)
     {
-        $order = Order::find($id);
-        if ($order->is_paid == 0) {
-            return back()->with('error', 'Order #' . $order->id . ' hasn\'t been paid yet.');
+        //
+        $order = $this->order->find($id);
+        if ($confirmed == 0) {
+            $confirmation = $order->update([
+                'delivered_at' => null,
+                'done' => $confirmed,
+            ]);
+            return back()->withSuccess('Hóa đơn #' . $id . ' chưa được xác nhận và hoàn tất');
         } else {
-            $order->is_done = 1;
-            $order->delivery_date = date('Y-m-d');
-            $order->status = 3;
-            if ($order->save()) {
-                return back()->with('success', 'Order #' . $order->id . ' has been completed.');
-            } else {
-                return back()->with('error', 'Error occurred!');
-            }
+            if (!$order->done)
+                return back()->withError('Hóa đơn  #' . $id . ' chưa được thanh toán, không thể xác nhận');
+            else
+                $confirmation = $order->update([
+                    'delivered_at' => date("Y-m-d H:i:s"),
+                    'done' => $confirmed,
+                ]);
+            return back()->withSuccess('Hóa đơn  #' . $id . ' đã được xác nhận và hoàn tất');
         }
     }
 
-    public function doUnConfirm($id)
+    public function pay($id, $paid)
     {
-        $order = Order::find($id);
-        $order->delivery_date = null;
-        $order->is_done = 0;
-        if ($order->save()) {
-            return back()->with('success', 'Order #' . $order->id . ' has been delayed.');
-        } else {
-            return back()->with('error', 'Error occurred!');
-        }
-    }
-
-    public function doPaid($id)
-    {
-        $order = Order::find($id);
-        $order->is_paid = 1;
-        if ($order->save()) {
-            return back()->with('success', 'Order #' . $order->id . ' has been paid.');
-        } else {
-            return back()->with('error', 'Error occurred!');
-        }
-    }
-
-    public function doUnPaid($id)
-    {
-        $order = Order::find($id);
-        $order->is_paid = 0;
-        if ($order->save()) {
-            return back()->with('success', 'Order #' . $order->id . ' hasn\'t been paid yet.');
-        } else {
-            return back()->with('error', 'Error occurred!');
-        }
+        //
+        $order = $this->order->find($id);
+        $confirmation = $order->update([
+            'paid' => $paid,
+        ]);
+        if ($paid == 0)
+            return back()->withSuccess('Hóa đơn #' . $id . ' chưa được thanh toán');
+        else
+            return back()->withSuccess('Hóa đơn  #' . $id . ' đã được thanh toán');
     }
 
     public function history(Request $request)
     {
-        $orders = Order::notDelete()
-            ->status($request)->sortId($request)->done()
+        $orders =  $this->order->done()
+            ->status($request)->sortId($request)
             ->sortTotal($request)->sortDate($request)->sortPaid($request);
-        $count_order = 0;
-        $view = 0;
-        $count_order = $orders->count();
-        if ($request->has('view')) {
-            $view = $request->view;
-        } else {
-            $view = 10;
-        }
-        $orders = $orders->paginate($view);
-        // address
-        $addresses = Address::get();
-        $wards = Ward::get();
-        $districts = District::get();
-        $provinces = Province::get();
+        $orders_count = $orders->count();
+        $view = $request->has('view') ? $request->view : 10;
+
         // filter
         $sort_id = $request->sort_id;
         $status = $request->status;
@@ -194,16 +149,12 @@ class OrderController extends Controller
         $sort_paid = $request->sort_paid;
         // user
         $user = Auth::guard('admin')->user();
-        return view('admin.order.history', [
+        return view('pages.admin.order.history', [
             // order
             'orders' => $orders,
-            'count_order' => $count_order,
+            'orders_count' => $orders_count,
             'view' => $view,
-            // address
-            'addresses' => $addresses,
-            'wards' => $wards,
-            'districts' => $districts,
-            'provinces' => $provinces,
+
             // filter
             'sort_id' => $sort_id,
             'sort_total' => $sort_total,
@@ -217,23 +168,13 @@ class OrderController extends Controller
 
     public function cancel(Request $request)
     {
-        $orders = Order::notDelete()
+        $orders = $this->order
             ->status($request)->sortId($request)->inactive()
             ->sortTotal($request)->sortDate($request)->sortPaid($request);
-        $count_order = 0;
-        $view = 0;
-        $count_order = $orders->count();
-        if ($request->has('view')) {
-            $view = $request->view;
-        } else {
-            $view = 10;
-        }
+        $orders_count = $orders->count();
+        $view = $request->has('view') ? $request->view : 10;
         $orders = $orders->paginate($view);
-        // address
-        $addresses = Address::get();
-        $wards = Ward::get();
-        $districts = District::get();
-        $provinces = Province::get();
+
         // filter
         $sort_id = $request->sort_id;
         $status = $request->status;
@@ -242,16 +183,12 @@ class OrderController extends Controller
         $sort_paid = $request->sort_paid;
         // user
         $user = Auth::guard('admin')->user();
-        return view('admin.order.cancel', [
+        return view('pages.admin.order.cancel', [
             // order
             'orders' => $orders,
-            'count_order' => $count_order,
+            'orders_count' => $orders_count,
             'view' => $view,
-            // address
-            'addresses' => $addresses,
-            'wards' => $wards,
-            'districts' => $districts,
-            'provinces' => $provinces,
+
             // filter
             'sort_id' => $sort_id,
             'sort_total' => $sort_total,
@@ -263,121 +200,47 @@ class OrderController extends Controller
         ]);
     }
 
-    public function detail($id)
+    public function edit($id)
     {
-        $order = Order::find($id);
-        $user = User::where('is_deleted', 0)->where('id', $order->user_id);
-        // address
-        $addresses = Address::get();
-        $wards = Ward::get();
-        $districts = District::get();
-        $provinces = Province::get();
-        // order detail
-        $order_details = OrderDetail::where('order_id', $order->id)->get();
-        $order_details_array = array();
-        foreach ($order_details as $detail) {
-            $order_details_array[] = $detail->product_id;
-        }
-        $order_detail_products = Product::where('is_deleted', 0)->whereIn('id', $order_details_array)->get();
+        $order = $this->order->find($id);
         // user
         $user = Auth::guard('admin')->user();
-        return view('admin.order.detail', [
+        return view('pages.admin.order.detail', [
             // order
             'order' => $order,
-            'order_details' => $order_details,
-            'order_detail_products' => $order_detail_products,
             'current_user' => $user,
-            // address
-            'addresses' => $addresses,
-            'wards' => $wards,
-            'districts' => $districts,
-            'provinces' => $provinces,
-            //
-            'current_user' => $user,
-
         ]);
     }
 
-    public function update(Request $request)
+    public function update(OrderRequest $request, $id)
     {
-        $validate = Validator::make(
-            $request->all(),
-            [
-                'status' => 'required|min:0|max:3',
-
-            ],
-            [
-                'required' => ':attribute must be filled',
-                'min' => ':attribute is invalid',
-                'max' => ':attribute is invalid'
-            ]
-        );
-        if ($validate->fails()) {
-            return response()->json([
-                'error' => true,
-                'message' => $validate->errors(),
-            ]);
-        } else {
-            $order = Order::find($request->id);
-            $order->status = $request->status;
-            $order->is_paid = $request->payment;
-            $result = $order->save();
-            if ($result) {
-                return response()->json([
-                    'error' => false,
-                    'message' => 'Success'
-                ]);
-            } else {
-                return response()->json([
-                    'error' => true,
-                    'message' => 'Error occurred'
-                ]);
-            }
-        }
+        $order = $this->order->find($id);
+        $result = $order->update(['status' => $request->status, 'paid' => $request->payment]);
+        return $result ? back()->withSuccess('Đơn hàng #' . $id . ' đã được cập nhật') : back()->withError('Xảy ra lỗi trong quá trình cập nhật đơn hàng #' . $id);
     }
 
-    public function doRemove($id)
+    public function delete($id)
     {
-        $order = Order::find($id);
-        if ($order->is_done == 0) {
-            return back()->with('error', 'Order #' . $order->id . ' has not been finished yet.');
+        $order = $this->order->find($id);
+        if ($order->done == 0) {
+            return back()->with('error', 'Đơn hàng #' . $order->id . ' chưa được hoàn thiện.');
         } else {
-            if ($order->is_paid == 1) {
-                return back()->with('error', 'Order #' . $order->id . ' has been paid.');
+            if ($order->paid == 1) {
+                return back()->with('error', 'Đơn hàng #' . $order->id . ' đã được thanh toán.');
             } else {
-                $count_relative_order_detail = OrderDetail::where('order_id', $order->id)->count();
-                if ($count_relative_order_detail == 0) {
-                    $order->is_deleted = 1;
-                    if ($order->save()) {
-                        return back()->with('success', 'order ' . $order->id . ' has been removed.');
-                    } else {
-                        return back()->with('error', 'Error occurred!');
-                    }
-                } else {
-                    return back()->with('error', 'order #' . $order->id . ' has order\'s details.');
-                }
+                $result = $order->delete();
+                return $result ? back()->withSuccess('Đơn hàng #' . $id . ' đã được xóa') : back()->withError('Lỗi xảy ra khi xóa đơn hang #' . $id);
             }
         }
     }
     public function recycle(Request $request)
     {
-        $orders = Order::softDelete()
+        $orders = $this->order->onlyTrashed()
             ->status($request)->sortId($request)
             ->sortTotal($request)->sortDate($request)->sortPaid($request);
-        $count_order = 0;
-        $view = 0;
-        $count_order = $orders->count();
-        if ($request->has('view')) {
-            $view = $request->view;
-        } else {
-            $view = 10;
-        }
+        $orders_count = $orders->count();
+        $view = $request->has('view') ? $request->view : 10;
         $orders = $orders->paginate($view);
-        // address
-        $addresses = Address::get();
-        $wards = Ward::get();
-        $districts = District::get();
-        $provinces = Province::get();
         // filter
         $sort_id = $request->sort_id;
         $status = $request->status;
@@ -386,16 +249,12 @@ class OrderController extends Controller
         $sort_paid = $request->sort_paid;
         // user
         $user = Auth::guard('admin')->user();
-        return view('admin.order.recycle', [
+        return view('pages.admin.order.recycle', [
             // order
             'orders' => $orders,
-            'count_order' => $count_order,
+            'order_count' => $orders_count,
             'view' => $view,
-            // address
-            'addresses' => $addresses,
-            'wards' => $wards,
-            'districts' => $districts,
-            'provinces' => $provinces,
+
             // filter
             'sort_id' => $sort_id,
             'sort_total' => $sort_total,
@@ -407,37 +266,23 @@ class OrderController extends Controller
 
         ]);
     }
-    public function doRestore($id)
+    public function restore($id)
     {
-        $order = Order::find($id);
-        $order->is_deleted = 0;
-        $order->save();
-        if ($order->save()) {
-            return back()->with('success', 'order ' . $order->id . ' has been restored.');
-        } else {
-            return back()->with('error', 'Error occurred!');
-        }
+        $result = $this->order->onlyTrashed()->find($id)->restore();
+        return back()->with('success', 'Đơn hàng #' . $id . ' đã được khôi phục.');
     }
 
-    public function doDelete($id)
+    public function destroy($id)
     {
-        $order = Order::find($id);
-        if ($order->is_done == 0) {
-            return back()->with('error', 'Order #' . $order->id . ' has not been finished yet.');
+        $order = $this->order->find($id);
+        if ($order->done == 0) {
+            return back()->with('error', 'Đơn hàng #' . $order->id . ' chưa được hoàn thiện.');
         } else {
-            if ($order->is_paid == 1) {
-                return back()->with('error', 'Order #' . $order->id . ' has been paid.');
+            if ($order->paid == 1) {
+                return back()->with('error', 'Đơn hàng #' . $order->id . ' đã được thanh toán.');
             } else {
-                $count_relative_order_detail = OrderDetail::where('order_id', $order->id)->count();
-                if ($count_relative_order_detail == 0) {
-                    if ($order->forceDelete()) {
-                        return back()->with('success', 'order ' . $order->id . ' has been deleted.');
-                    } else {
-                        return back()->with('error', 'Error occurred!');
-                    }
-                } else {
-                    return back()->with('error', 'order #' . $order->id . ' has order\'s details.');
-                }
+                $result = $order->forceDelete();
+                return $result ? back()->withSuccess('Đơn hàng #' . $id . ' đã được xóa vĩnh viễn') : back()->withError('Lỗi xảy ra khi xóa vĩnh viễn đơn hang #' . $id);
             }
         }
     }
@@ -447,152 +292,151 @@ class OrderController extends Controller
         if ($request->has('bulk_action')) {
             if ($request->has('order_id_list')) {
                 $message = null;
+                $errors = null;
                 switch ($request->bulk_action) {
                     case 0: // deactivate
-                        $message = 'Order ';
+                        $message = 'Đơn hàng ';
                         foreach ($request->order_id_list as $order_id) {
-                            $order = null;
-                            $order = Order::find($order_id);
-                            $order->is_actived = 0;
-                            if ($order->save()) {
+                            $order = $this->order->find($order_id);
+                            $verify = $order->update([
+                                'verified' => 0,
+                            ]);
+                            if ($verify) {
                                 $message .= ' #' . $order->id . ', ';
                             } else {
-                                return back()->with('error', 'Error occurred while deactivating order #' . $order->id);
+                                $errors[] = 'Lỗi xảy ra khi tắt Đơn hàng #' . $order->id . '.';
                             }
                         }
-                        $message .= 'have been deactivated.';
-                        return back()->with('success', $message);
+                        $message .= 'đã được tắt.';
                         break;
                     case 1: // activate
-                        $message = 'Order ';
+                        $message = 'Đơn hàng ';
                         foreach ($request->order_id_list as $order_id) {
-                            $order = null;
-                            $order = Order::find($order_id);
-                            $order->is_actived = 1;
-                            if ($order->save()) {
+                            $order = $this->order->find($order_id);
+                            $verify = $order->update([
+                                'verified' => 1,
+                            ]);
+                            if ($verify) {
                                 $message .= ' #' . $order->id . ', ';
                             } else {
-                                return back()->with('error', 'Error occurred while activating order #' . $order->id);
+                                $errors[] = 'Lỗi xảy ra khi bật Đơn hàng #' . $order->id . '.';
                             }
                         }
-                        $message .= 'have been activated.';
-                        return back()->with('success', $message);
+                        $message .= 'đã được bật.';
                         break;
-                    case 2: // done
-                        $message = 'Order ';
+                    case 2: // undone
+                        $message = 'Đơn hàng ';
                         foreach ($request->order_id_list as $order_id) {
-                            $order = null;
-                            $order = Order::find($order_id);
-                            $order->is_done = 1;
-                            if ($order->save()) {
+                            $order = $this->order->find($order_id);
+                            $verify = $order->update([
+                                'done' => 0,
+                            ]);
+                            if ($verify) {
                                 $message .= ' #' . $order->id . ', ';
                             } else {
-                                return back()->with('error', 'Error occurred while completing order #' . $order->id);
+                                $errors[] = 'Lỗi xảy ra khi đánh dấu Đơn hàng #' . $order->id . ' là chưa hoàn thiện.';
                             }
                         }
-                        $message .= 'have been completed.';
-                        return back()->with('success', $message);
+                        $message .= 'đã được đánh dấu là chưa hoàn thiện.';
                         break;
-                    case 3: // un done
-                        $message = 'Order ';
+                    case 3: // done
+                        $message = 'Đơn hàng ';
                         foreach ($request->order_id_list as $order_id) {
-                            $order = null;
-                            $order = Order::find($order_id);
-                            $order->is_done = 0;
-                            if ($order->save()) {
+                            $order = $this->order->find($order_id);
+                            $verify = $order->update([
+                                'done' => 1,
+                            ]);
+                            if ($verify) {
                                 $message .= ' #' . $order->id . ', ';
                             } else {
-                                return back()->with('error', 'Error occurred while marking order #' . $order->id . ' as incomplete one');
+                                $errors[] = 'Lỗi xảy ra khi hoàn thiện Đơn hàng #' . $order->id . '.';
                             }
                         }
-                        $message .= 'have been marking as incomplete one(s).';
-                        return back()->with('success', $message);
+                        $message .= 'đã được đánh dấu là hoàn thiện.';
                         break;
                     case 4: // paid
-                        $message = 'Order ';
+                        $message = 'Đơn hàng ';
                         foreach ($request->order_id_list as $order_id) {
-                            $order = null;
-                            $order = Order::find($order_id);
-                            $order->is_paid = 1;
-                            if ($order->save()) {
+                            $order = $this->order->find($order_id);
+                            $verify = $order->update([
+                                'paid' => 1,
+                            ]);
+                            if ($verify) {
                                 $message .= ' #' . $order->id . ', ';
                             } else {
-                                return back()->with('error', 'Error occurred while marking order #' . $order->id . ' as paid one');
+                                $errors[] = 'Lỗi xảy ra khi đánh dấu Đơn hàng #' . $order->id . ' là đã thanh toán.';
                             }
                         }
-                        $message .= 'have been marking as paid one(s).';
-                        return back()->with('success', $message);
+                        $message .= 'đã được thanh toán.';
                         break;
                     case 5: // un paid
-                        $message = 'order ';
+                        $message = 'Đơn hàng ';
                         foreach ($request->order_id_list as $order_id) {
-                            $order = null;
-                            $order = Order::find($order_id);
-                            $order->is_paid = 0;
-                            if ($order->save()) {
+                            $order = $this->order->find($order_id);
+                            $verify = $order->update([
+                                'paid' => 0,
+                            ]);
+                            if ($verify) {
                                 $message .= ' #' . $order->id . ', ';
                             } else {
-                                return back()->with('error', 'Error occurred while marking order #' . $order->id . ' as unpaid one');
+                                $errors[] = 'Lỗi xảy ra khi đánh dấu Đơn hàng #' . $order->id . ' là chưa thanh toán.';
                             }
                         }
-                        $message .= 'have been mark as unpaid one(s).';
-                        return back()->with('success', $message);
+                        $message .= 'đã được đánh dấu là chưa thanh toán.';
                         break;
                     case 6: // remove
-                        $message = 'order';
+                        $message = 'Đơn hàng';
                         foreach ($request->order_id_list as $order_id) {
                             $order = null;
-                            $order = Order::find($order_id);
-                            $count_relative_order_detail = OrderDetail::where('order_id', $order_id)->count();
-                            if ($count_relative_order_detail == 0) {
-                                $order->is_deleted = 1;
-                                if ($order->save()) {
-                                    $message .= ' #' . $order->id . ', ';
-                                } else {
-                                    return back()->with('error', 'Error occurred when remove order #' . $order->id);
-                                }
+                            $order = $this->order->find($order_id);
+                            $result = $order->delete();
+                            if ($result) {
+                                $message .= ' #' . $order->id . ', ';
                             } else {
-                                return back()->with('error', 'order #' . $order->id . ' has order\'s details.');
+                                $errors[] = 'Lỗi xảy ra khi loại bỏ Đơn hàng #' . $order->id . '.';
                             }
                         }
-                        $message .= 'have been removed.';
+                        $message .= 'đã được loại bỏ.';
                         break;
                     case 7: // restore
-                        $message = 'order ';
+                        $message = 'Đơn hàng';
                         foreach ($request->order_id_list as $order_id) {
                             $order = null;
-                            $order = Order::find($order_id);
-                            $order->is_deleted = 0;
-                            if ($order->save()) {
+                            $order = $this->order->onlyTrashed()->find($order_id);
+                            $result = $order->restore();
+                            if ($result) {
                                 $message .= ' #' . $order->id . ', ';
                             } else {
-                                return back()->with('error', 'Error occurred when restore order #' . $order->id);
+                                $errors[] = 'Lỗi xảy ra khi khôi phục Đơn hàng #' . $order->id . '.';
                             }
                         }
-                        $message .= 'have been restored.';
-                        return back()->with('success', $message);
+                        $message .= 'đã được khôi phục.';
                         break;
                     case 8: // delete
-                        $message = 'order ';
+                        $message = 'Đơn hàng';
                         foreach ($request->order_id_list as $order_id) {
                             $order = null;
-                            $order = Order::find($order_id);
-                            if ($order->forceDelete()) {
+                            $order = $this->order->onlyTrashed()->find($order_id);
+                            $result = $order->forceDelete();
+                            if ($result) {
                                 $message .= ' #' . $order->id . ', ';
                             } else {
-                                return back()->with('error', 'Error occurred when deleted order #' . $order->id);
+                                $errors[] = 'Lỗi xảy ra khi xóa vĩnh viễn Đơn hàng #' . $order->id . '.';
                             }
                         }
-                        $message .= 'have been deleted.';
-                        return back()->with('success', $message);
+                        $message .= 'đã được xóa vĩnh viễn.';
                         break;
                 }
-                return back()->with('success', $message);
+                if ($errors != null) {
+                    return back()->withSuccess($message)->withErrors($errors);
+                } else {
+                    return back()->withSuccess($message);
+                }
             } else {
-                return back()->with('error', 'Please select orders to take action!');
+                return back()->withError('Hãy chọn ít nhất 1 Đơn hàng để thực hiện thao tác!');
             }
         } else {
-            return back()->with('error', 'Please select an action!');
+            return back()->withError('Hãy chọn 1 thao tác cụ thể!');
         }
     }
 }
