@@ -1,5 +1,7 @@
 @extends('layouts.customer.index')
-@section('title', 'Details - Electronical Store')
+@section('title')
+    {{$product->name}}
+@endsection
 @section('content')
     <!-- breadcrumbs -->
     <div class="breadcrumbs">
@@ -148,7 +150,7 @@
                                     <div class="tab-pane fade" id="product_tabs_tags">
                                         <div class="box-collateral box-tags">
                                             <div class="tags">
-                                                <p class="note">You can use these tags to search for similar products.
+                                                <p class="note">Bạn có thể sử dụng những thẻ này để tìm kiếm các sản phẩm tương tự.
                                                 </p>
                                                 @if ($product->has('tagProducts'))
                                                     @foreach ($product->tagProducts as $tagProduct)
@@ -164,11 +166,23 @@
                                         <div class="box-collateral box-reviews" id="customer-reviews">
                                             <div class="box-reviews1">
                                                 <div class="form-add">
-                                                    <form id="review_form" action="{{ URL::to('/account/review') }}"
+                                                    <form id="review_form" action="{{ route('account.review.store') }}"
                                                         method="post">
                                                         @csrf
                                                         <h3>Viết đánh giá của bạn</h3>
-                                                        <div id="errorMessage"></div>
+                                                        <div class="panel">
+                                                            @if (count($errors) > 0)
+                                                                @foreach ($errors->all() as $error)
+                                                                    <p class="alert alert-danger">{{ $error }}</p>
+                                                                @endforeach
+                                                            @endif
+                                                            @if (session('error'))
+                                                            <p class="alert-danger alert">{{ session('error') }}</p>
+                                                        @endif
+                                                            @if (session('success'))
+                                                                <p class="alert-success alert">{{ session('success') }}</p>
+                                                            @endif
+                                                        </div>
                                                         <fieldset>
                                                             <h4>Bạn đánh giá sản phẩm này như thể nào? <em
                                                                     class="required">*</em>

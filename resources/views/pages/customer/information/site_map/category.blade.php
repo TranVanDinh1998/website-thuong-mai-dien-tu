@@ -1,5 +1,5 @@
-@extends('layout')
-@section('title', 'Site map - Electronical Store')
+@extends('layouts.customer.index')
+@section('title', 'Phụ lục trang web')
 @section('content')
     <!-- main-container -->
     <div class="main-container col2-right-layout">
@@ -8,19 +8,19 @@
                 <section class="col-main col-sm-9 wow">
                     <div class="my-account">
                         <div class="page-title">
-                            <h2>Categories</h2>
+                            <h2>Danh sách thể loại</h2>
                         </div>
                         <div class="col-2 registered-users">
                             <div class="content">
                                 <div id="sitemap_top_links">
                                     <ul class="links">
                                         <li class=" first last"><a href="{{ route('info.site_map.product') }}"
-                                                title="Products Sitemap">Products Sitemap</a></li>
+                                                title="Products Sitemap">Danh sách sản phẩm</a></li>
                                     </ul>
                                 </div>
                                 <div class="toolbar">
                                     <div id="sort-by">
-                                        <label class="left">Sort By: </label>
+                                        <label class="left">Sắp xếp theo: </label>
                                         <ul>
                                             <li>
                                                 <a
@@ -29,7 +29,7 @@
                                                 </a>
                                                 <ul>
                                                     <li><a
-                                                            href="{{ route('info.site_map.category', ['sort' => 1, 'view' => $view]) }}">Name</a>
+                                                            href="{{ route('info.site_map.category', ['sort' => 1, 'view' => $view]) }}">Tên</a>
                                                     </li>
                                                 </ul>
                                             </li>
@@ -39,9 +39,9 @@
                                                 class="glyphicon glyphicon-arrow-up"></span></a>
                                     </div>
                                     <div class="pager" style="float: left">
-                                        <p class="amount"><strong>{{ $count_categories }} item(s)<strong></p>
+                                        <p class="amount"><strong>{{ $count_categories }} thể loại<strong></p>
                                         <div id="limiter">
-                                            <label>View: </label>
+                                            <label>Hiển thị: </label>
                                             <ul>
                                                 <li><a
                                                         href="{{ route('info.site_map.category', ['sort' => $sort, 'view' => 15]) }}">15<span
@@ -82,7 +82,7 @@
                                 </div>
                                 <div class="toolbar">
                                     <div id="sort-by">
-                                        <label class="left">Sort By: </label>
+                                        <label class="left">Sắp xếp theo: </label>
                                         <ul>
                                             <li>
                                                 <a
@@ -91,7 +91,7 @@
                                                 </a>
                                                 <ul>
                                                     <li><a
-                                                            href="{{ route('info.site_map.category', ['sort' => 1, 'view' => $view]) }}">Name</a>
+                                                            href="{{ route('info.site_map.category', ['sort' => 1, 'view' => $view]) }}">Tên</a>
                                                     </li>
                                                 </ul>
                                             </li>
@@ -101,9 +101,9 @@
                                                 class="glyphicon glyphicon-arrow-up"></span></a>
                                     </div>
                                     <div class="pager" style="float: left">
-                                        <p class="amount"><strong>{{ $count_categories }} item(s)<strong></p>
+                                        <p class="amount"><strong>{{ $count_categories }} thể loại<strong></p>
                                         <div id="limiter">
-                                            <label>View: </label>
+                                            <label>Hiển thị: </label>
                                             <ul>
                                                 <li><a
                                                         href="{{ route('info.site_map.category', ['sort' => $sort, 'view' => 15]) }}">15<span
@@ -132,7 +132,7 @@
                         </div>
                     </div>
                 </section>
-                @include('information_side_bar');
+                @include('components.customer.sidebar.info')
             </div>
         </div>
     </div>

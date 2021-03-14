@@ -213,8 +213,8 @@
                         <div class="block-content">
                             <div class="summary">
                                 <p class="amount">
-                                    <a href="{{ URL::to('cart') }}">
-                                        There are
+                                    <a href="{{ route('cart.index') }}">
+                                        Có
                                         @if ($count_cart != 0 && $count_cart != null)
                                             {{ $count_cart }}
                                         @else
@@ -272,14 +272,14 @@
                                     @endforeach
                                 @else
                                     <li class="item odd active">
-                                        <p class="product-name"><a href="#">None</a></p>
+                                        <p class="product-name"><a href="#">Trống</a></p>
                                     </li>
                                 @endif
                             </ol>
                         </div>
                     </div>
                     <div class="block block-compare">
-                        <div class="block-title "><span>Compare Products ({{ $count_compare }})</span></div>
+                        <div class="block-title "><span>So sánh các sản phẩm ({{ $count_compare }})</span></div>
                         <div class="block-content">
                             <ol id="compare-items">
                                 @if (isset($compare))
@@ -294,15 +294,15 @@
                                     @endforeach
                                 @else
                                     <li class="item odd active">
-                                        <p class="product-name"><a href="#">None</a></p>
+                                        <p class="product-name"><a href="#">Trống</a></p>
                                     </li>
                                 @endif
                             </ol>
                             <div class="ajax-checkout">
                                 <a href="{{ route('compare.index') }}" type="submit" title="Submit" onclick=""
-                                    class="button button-compare"><span>Compare</span></a>
+                                    class="button button-compare"><span>So sánh</span></a>
                                 <button type="submit" onclick="return remove_compare();" title="Submit"
-                                    class="button button-clear"><span>Clear</span></button>
+                                    class="button button-clear"><span>Xóa</span></button>
                             </div>
                         </div>
                     </div>

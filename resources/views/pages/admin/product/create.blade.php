@@ -26,6 +26,9 @@
                                         <p class="alert alert-danger">{{ $error }}</p>
                                     @endforeach
                                 @endif
+                                @if (session('error'))
+                                    <p class="alert-danger alert">{{ session('error') }}</p>
+                                @endif
                                 @if (session('success'))
                                     <p class="alert-success alert">{{ session('success') }}</p>
                                 @endif
@@ -40,6 +43,7 @@
                                     placeholder="Password"></textarea>
                                 <script>
                                     CKEDITOR.replace('descript');
+
                                 </script>
                             </div>
                             <div class="form-group">

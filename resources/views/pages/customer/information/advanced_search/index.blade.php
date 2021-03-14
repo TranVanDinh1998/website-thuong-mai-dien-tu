@@ -1,5 +1,5 @@
-@extends('layout')
-@section('title', 'Advanced search - Electronical Store')
+@extends('layouts.customer.index')
+@section('title', 'Tìm kiếm nâng cao')
 @section('content')
     <div class="main-container col2-right-layout">
         <div class="main container">
@@ -7,22 +7,22 @@
                 <section class="col-main col-sm-9 wow">
                     <div class="my-account">
                         <div class="page-title">
-                            <h2>Advanced search</h2>
+                            <h2>Tìm kiếm nâng cao</h2>
                         </div>
                         <div class="col-2 registered-users">
                             <div class="content">
-                                <h4>Search settings</h4>
+                                <h4>Thiết lập tìm kiếm</h4>
                                 <form enctype="multipart/form-data" method="GET"
                                     action="{{ route('info.advanced_search.result') }}">
                                     <div class="form-group">
-                                        <label for="name">Name</label>
+                                        <label for="name">Tên sản phẩm</label>
                                         <input type="text" class="form-control" name="search" placeholder="name"
                                             value="{{ $search }}">
                                     </div>
                                     <div class="form-group">
-                                        <label for="category_id">Category::</label>
+                                        <label for="category_id">Thể loại:</label>
                                         <select class="form-control mul-select" name="category_id_list[]" multiple>
-                                            <option>Select category </option>
+                                            <option>Lựa chọn thể loại </option>
                                             @foreach ($categories as $category)
                                                 <option value='{{ $category->id }}' @if ($category_id_list != null)
                                                     @foreach ($category_id_list as $selected)
@@ -38,9 +38,9 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label for="producer_id">Producer:</label>
+                                        <label for="producer_id">Hãng:</label>
                                         <select class="form-control mul-select" name="producer_id_list[]" multiple>
-                                            <option>Select producer </option>
+                                            <option>Lựa chọn hãng </option>
                                             @foreach ($producers as $producer)
                                                 <option value='{{ $producer->id }}' @if ($producer_id_list != null)
                                                     @foreach ($producer_id_list as $selected)
@@ -56,18 +56,18 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label for="name">Price</label>
+                                        <label for="name">Mức giá</label>
                                         <input type="number" class="form-control" name="price_from" placeholder="from">
                                         <input type="number" class="form-control" name="price_to" placeholder="to">
                                     </div>
                                     <div class="form-group">
-                                        <button type="submit" class="button">Search</button>
+                                        <button type="submit" class="button">Tìm kiếm</button>
                                     </div>
                                 </form>
                             </div>
                         </div>
                 </section>
-                @include('information_side_bar');
+                @include('components.customer.sidebar.info')
             </div>
         </div>
     </div>

@@ -1,24 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Pages\Info;
+namespace App\Http\Controllers\Customer\Info;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use App\Product;
-use App\Category;
-use App\Collection;
-use App\CollectionProduct;
-use App\Order;
-use App\ProductImage;
-use App\Address;
-use App\District;
-use App\Province;
-use App\Ward;
-use App\Review;
-use App\WishList;
-use App\OrderDetail;
-use App\Tag;
-use App\User;
+use App\Models\Tag;
 use Illuminate\Auth\Events\Validated;
 use Illuminate\Http\Request;
 use Illuminate\Support\MessageBag;
@@ -29,6 +15,10 @@ use Illuminate\Support\Facades\Validator;
 
 class SearchTermsController extends Controller
 {
+    public function __construct(Tag $tag)
+    {
+        $this->tag = $tag;
+    }
 
     public function index(Request $request)
     {
@@ -56,14 +46,10 @@ class SearchTermsController extends Controller
         $user = Auth::user();
 
         // tag
-        $tags = Tag::notDelete()->active()->sort($request);
+        $tags = $this->tag->active()->sort($request);
         $count_tags = $tags->count();
         // paginate
-        if ($request->has('view')) {
-            $tags = $tags->paginate($request->view);
-        } else {
-            $tags = $tags->paginate(15);
-        }
+        $tags = $request->has('view') ? $tags->paginate($request->view) : $tags->paginate(15);
 
         // sort
         $sort = null;
@@ -72,7 +58,7 @@ class SearchTermsController extends Controller
         $view = $request->view;
 
 
-        return view('pages.information.search_term', [
+        return view('pages.customer.information.search_term', [
             // cart
             'shopping_carts' => $shopping_carts,
             'count_cart' => $count_cart,

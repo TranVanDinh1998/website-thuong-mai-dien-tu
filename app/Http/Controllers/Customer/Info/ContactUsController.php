@@ -1,26 +1,11 @@
 <?php
 
-namespace App\Http\Controllers\Pages\Info;
+namespace App\Http\Controllers\Customer\Info;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ContactRequest;
 use Illuminate\Support\Facades\DB;
-use App\Product;
-use App\Category;
-use App\Collection;
-use App\CollectionProduct;
-use App\Order;
-use App\ProductImage;
-use App\Address;
-use App\District;
-use App\Province;
-use App\Ward;
-use App\Review;
-use App\WishList;
-use App\OrderDetail;
-use App\Tag;
-use App\User;
-use App\Contact;
-use App\Producer;
+use App\Models\Contact;
 use Illuminate\Auth\Events\Validated;
 use Illuminate\Http\Request;
 use Illuminate\Support\MessageBag;
@@ -31,6 +16,10 @@ use Illuminate\Support\Facades\Validator;
 
 class ContactUsController extends Controller
 {
+    public function __construct(Contact $contact)
+    {
+        $this->contact = $contact;
+    }
 
     public function index()
     {
@@ -58,7 +47,7 @@ class ContactUsController extends Controller
         $user = null;
         $user = Auth::user();
 
-        return view('pages.information.contact_us', [
+        return view('pages.customer.information.contact_us', [
             // cart
             'shopping_carts' => $shopping_carts,
             'count_cart' => $count_cart,
@@ -69,47 +58,14 @@ class ContactUsController extends Controller
         ]);
     }
 
-    public function doContact(Request $request)
+    public function store(ContactRequest $request)
     {
-        // $parameter = $request->all();
-        // print_r($parameter);
-        $validate = Validator::make(
-            $request->all(),
-            [
-                'name' => 'required',
-                'email' => 'required|email',
-                'number' => 'required',
-                'comment' => 'required',
-
-            ],
-            [
-                'required' => ':attribute must be filled',
-                'email' => ':attribute email format is incorrect',
-            ]
-        );
-        if ($validate->fails()) {
-            return response()->json([
-                'error' => true,
-                'message' => $validate->errors(),
-            ]);
-        } else {
-            $contact = new Contact();
-            $contact->name = $request->name;
-            $contact->email = $request->email;
-            $contact->number = $request->number;
-            $contact->comment = $request->comment;
-            $contact->create_date = date('Y-m-d');
-            $result = $contact->save();
-            if ($result) {
-                return response()->json([
-                    'error' => false,
-                ]);
-            } else {
-                return response()->json([
-                    'error' => true,
-                    'message' => new MessageBag(['errorContact' => 'Error occurred!'])
-                ]);
-            }
-        }
+        $result = $this->contact->create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'number' => $request->number,
+            'comment' => $request->comment,
+        ]);
+        return $result ? back()->withSuccess('Liên hệ của bạn đã được đưa vào hàng chờ.') : back()->withError('Có lỗi xảy ra trong quá trình xử lý.');
     }
 }

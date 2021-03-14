@@ -1,26 +1,9 @@
 <?php
 
-namespace App\Http\Controllers\Pages\Info;
+namespace App\Http\Controllers\Customer\Info;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use App\Product;
-use App\Category;
-use App\Collection;
-use App\CollectionProduct;
-use App\Order;
-use App\ProductImage;
-use App\Address;
-use App\District;
-use App\Province;
-use App\Ward;
-use App\Review;
-use App\WishList;
-use App\OrderDetail;
-use App\Tag;
-use App\User;
-use App\Contact;
-use App\Producer;
 use Illuminate\Auth\Events\Validated;
 use Illuminate\Http\Request;
 use Illuminate\Support\MessageBag;
@@ -58,7 +41,7 @@ class AboutUsController extends Controller
         $user = null;
         $user = Auth::user();
 
-        return view('pages.information.about_us', [
+        return view('pages.customer.information.about_us', [
             // cart
             'shopping_carts' => $shopping_carts,
             'count_cart' => $count_cart,

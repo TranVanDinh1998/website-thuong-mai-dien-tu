@@ -1,23 +1,11 @@
 <?php
 
-namespace App\Http\Controllers\Pages\Info;
+namespace App\Http\Controllers\Customer\Info;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use App\Product;
-use App\Category;
-use App\Collection;
-use App\CollectionProduct;
-use App\Order;
-use App\ProductImage;
-use App\Address;
-use App\District;
-use App\Province;
-use App\Ward;
-use App\Review;
-use App\WishList;
-use App\OrderDetail;
-use App\User;
+use App\Models\Product;
+use App\Models\Category;
 use Illuminate\Auth\Events\Validated;
 use Illuminate\Http\Request;
 use Illuminate\Support\MessageBag;
@@ -28,7 +16,11 @@ use Illuminate\Support\Facades\Validator;
 
 class SiteMapController extends Controller
 {
-
+    public function __construct(Product $product, Category $category)
+    {
+        $this->product = $product;
+        $this->category = $category;
+    }
     public function category(Request $request)
     {
         // cart
@@ -50,20 +42,13 @@ class SiteMapController extends Controller
                 }
             }
         }
-
         // user
         $user = Auth::user();
-
         // category
-        $categories = Category::notDelete()->active()->sort($request);
+        $categories = $this->category->active()->sort($request);
         $count_categories = $categories->count();
         // paginate
-        if ($request->has('view')) {
-            $categories = $categories->paginate($request->view);
-        } else {
-            $categories = $categories->paginate(15);
-        }
-
+        $categories = $request->has('view') ? $categories->paginate($request->view) : $categories->paginate(12);
         // sort
         $sort = null;
         $sort = $request->sort;
@@ -71,7 +56,7 @@ class SiteMapController extends Controller
         $view = $request->view;
 
 
-        return view('pages.information.site_map.category', [
+        return view('pages.customer.information.site_map.category', [
             // cart
             'shopping_carts' => $shopping_carts,
             'count_cart' => $count_cart,
@@ -111,28 +96,20 @@ class SiteMapController extends Controller
                 }
             }
         }
-
         // user
         $user = Auth::user();
-
         // category
-        $products = Product::notDelete()->active()->sort($request);
+        $products = $this->product->active()->sort($request);
         $count_products = $products->count();
         // paginate
-        if ($request->has('view')) {
-            $products = $products->paginate($request->view);
-        } else {
-            $products = $products->paginate(15);
-        }
-
+        $products = $request->has('view') ? $products->paginate($request->view) : $products->paginate(15);
         // sort
         $sort = null;
         $sort = $request->sort;
         $view = null;
         $view = $request->view;
 
-
-        return view('pages.information.site_map.product', [
+        return view('pages.customer.information.site_map.product', [
             // cart
             'shopping_carts' => $shopping_carts,
             'count_cart' => $count_cart,

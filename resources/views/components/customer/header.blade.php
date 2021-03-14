@@ -213,7 +213,7 @@
                 <li class="level0 parent drop-menu"><a href="{{ route('compare.index') }}"><span>So sánh</span>
                     </a>
                 </li>
-                <li class="level0 parent drop-menu"><a href="{{ route('info.contact_us') }}"><span>Liên hệ</span>
+                <li class="level0 parent drop-menu"><a href="{{ route('info.contact_us.index') }}"><span>Liên hệ</span>
                     </a>
                 </li>
                 <li class="level0 parent drop-menu"><a href="{{ route('info.about_us') }}"><span>Thông tin về cửa

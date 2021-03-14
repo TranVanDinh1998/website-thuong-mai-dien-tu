@@ -140,6 +140,7 @@ class OrderController extends Controller
             ->sortTotal($request)->sortDate($request)->sortPaid($request);
         $orders_count = $orders->count();
         $view = $request->has('view') ? $request->view : 10;
+        $orders = $orders->paginate($view);
 
         // filter
         $sort_id = $request->sort_id;

@@ -4,20 +4,20 @@ namespace App\Http\Controllers\Customer\Account;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use App\Product;
-use App\Category;
-use App\Collection;
-use App\CollectionProduct;
-use App\Order;
-use App\ProductImage;
-use App\Address;
-use App\District;
-use App\Province;
-use App\Ward;
-use App\Review;
-use App\WishList;
-use App\OrderDetail;
-use App\User;
+use App\Models\Product;
+use App\Models\Category;
+use App\Models\Collection;
+use App\Models\CollectionProduct;
+use App\Models\Order;
+use App\Models\ProductImage;
+use App\Models\Address;
+use App\Models\District;
+use App\Models\Province;
+use App\Models\Ward;
+use App\Models\Review;
+use App\Models\WishList;
+use App\Models\OrderDetail;
+use App\Models\User;
 use Illuminate\Auth\Events\Validated;
 use Illuminate\Http\Request;
 use Illuminate\Support\MessageBag;
@@ -28,9 +28,11 @@ use Illuminate\Support\Facades\Validator;
 
 class WishlistController extends Controller
 {
-    public function __construct()
+    public function __construct(WishList $wishList, Product $product)
     {
         $this->middleware('auth');
+        $this->wishList = $wishList;
+        $this->product = $product;
     }
 
 
@@ -59,16 +61,10 @@ class WishlistController extends Controller
         }
 
         // wishlist
-        $wish_lists = WishList::where('user_id', Auth::user()->id)->get();
-        $wish_list_array = array();
-        foreach ($wish_lists as $wish) {
-            $wish_list_array[] = $wish->product_id;
-        }
-        // print_r($wish_list_array);
-        $wish_list_products = Product::where('is_deleted', 0)->whereIn('id', $wish_list_array)->get();
-        // print_r(count($wish_list_product));
+        $user = Auth::user();
+        $wishLists = $user->wishLists;
 
-        return view('pages.account.wish_list', [
+        return view('pages.customer.account.wishList', [
             // cart
             'shopping_carts' => $shopping_carts,
             'count_cart' => $count_cart,
@@ -76,76 +72,68 @@ class WishlistController extends Controller
             'discount_cart' => $discount_cart,
 
             // wish list
-            'wish_lists' => $wish_lists,
-            'wish_list_products' => $wish_list_products,
+            'wishLists' => $wishLists,
 
         ]);
     }
 
-    public function add_to_wish_list(Request $request)
+    public function store(Request $request)
     {
         $user = Auth::user();
-        $product = Product::find($request->id);
-        $wish_lists = WishList::where('user_id', '=', $user->id)->where('product_id', $request->id)->get();
-        if (count($wish_lists) > 0) {
+        $product = $this->product->find($request->id);
+        $wishLists = $user->wishLists->where('product_id', $request->id)->get();
+        if (count($wishLists) > 0) {
             return response()->json([
                 'error' => true,
-                'message' => 'Product ' . $product->name . ' has already been within your wish list',
+                'message' => 'Sản phẩm '.$product->name.' đã có trong danh sách ưu thích của bạn.',
             ]);
         } else {
-            $wish_list = new WishList();
-            $wish_list->user_id =  $user->id;
-            $wish_list->product_id = $product->id;
-            $wish_list->quantity = 1;
-            $result = $wish_list->save();
-            if ($result) {
+            $wishList = $this->wishList->create(['user_id'=>$user->id,'product_id'=>$product->id,'quantity'=>1]);
+            if ($wishList) {
                 return response()->json([
                     'error' => false,
-                    'message' => 'Product ' . $product->name . ' has been added to your wish list',
+                    'message' => 'Sản phẩm '.$product->name.' đã được thêm vào danh sách ưu thích của bạn.',
                 ]);
             } else {
                 return response()->json([
                     'error' => true,
-                    'message' => 'Error occoured!',
+                    'message' => 'Xảy ra lỗi trong quá trình thêm sản phẩm vào danh sách ưu thích.',
                 ]);
             }
         }
     }
 
-    public function edit_wish_list(Request $request)
+    public function update(Request $request)
     {
         if ($request->id == null) {
-            return back()->with('error', 'ID is invalid!');
+            return back()->with('error', 'Mã sản phẩm ưu thích không hợp lệ.');
         }
-        $wish_list = WishList::find($request->id);
-        $wish_list->note = $request->note;
-        $wish_list->quantity = $request->quantity;
-
-        $result = $wish_list->save();
+        $wishList = $this->wishList->find($request->id);
+        $result = $wishList->update(['note'=>$request->note,'quantity'=>$request->quantity]);
         if ($result) {
-            return back()->with('success', 'Item ' . $wish_list->id . ' was edited.');
+            return back()->with('success', 'Thành phần #' . $wishList->id . ' trong danh sách ưu thích đã được cập nhật.');
         } else {
-            return back()->with('error', 'Error occurred!');
+            return back()->with('error', 'Xảy ra lỗi trong quá trình cập nhật danh sách ưu thích.');
         }
     }
 
-    public function remove_wish_list($id)
+    public function destroy($id)
     {
-        $wish_list = WishList::find($id);
-        if ($wish_list->forceDelete()) {
-            return back()->with('success', 'Item ' . $wish_list->id . ' was deleted from wish list.');
+        $wishList = $this->wishList->find($id);
+        if ($wishList->forceDelete()) {
+            return back()->with('success', 'Thành phần #' . $wishList->id . ' đã bị xóa khỏi danh sách ưu thích.');
         } else {
-            return back()->with('error', 'Error occurred!');
+            return back()->with('error', 'Xảy ra lỗi trong quá trình xóa thành phần trong danh sách ưu thích.');
         }
     }
 
-    public function wish_list_to_cart()
+    public function cart()
     {
         // wishlist
-        $wish_lists = WishList::where('user_id', Auth::user()->id)->get();
+        $wishLists = $this->wishList->where('user_id', Auth::user()->id)->get();
 
-        foreach ($wish_lists as $wish_list) {
-            $product = Product::find($wish_list->product_id);
+        foreach ($wishLists as $wishList) {
+            $product = Product::find($wishList->product_id);
             // add product to shopping cart
             if ($product->remaining == 0 || $product->is_actived == 0) {
                 return back()->with('error', 'The product ' . $product->name . ' is out of stock!');
@@ -154,10 +142,10 @@ class WishlistController extends Controller
                 // if cart is empty then this is the first product of the cart
                 if (!$cart) {
                     $cart = [
-                        $wish_list->product_id => [
+                        $wishList->product_id => [
                             'product_name' => $product->name,
                             'product_image' => $product->image,
-                            'product_quantity' => $wish_list->quantity,
+                            'product_quantity' => $wishList->quantity,
                             'product_price' => $product->price,
                             'product_discount' => $product->discount,
                         ]
@@ -165,21 +153,21 @@ class WishlistController extends Controller
                     session()->put('cart', $cart);
                 }
                 // if cart is not empty then check if this product exist before then change the chapter
-                if (isset($cart[$wish_list->product_id])) {
-                    $cart[$wish_list->product_id]['product_quantity'] = $cart[$wish_list->product_id]['product_quantity'] + $wish_list->quantity;
+                if (isset($cart[$wishList->product_id])) {
+                    $cart[$wishList->product_id]['product_quantity'] = $cart[$wishList->product_id]['product_quantity'] + $wishList->quantity;
                     session()->put('cart', $cart);
                 }
                 //if product not exist in cart then add product into cart
-                $cart[$wish_list->product_id] = [
+                $cart[$wishList->product_id] = [
                     'product_name' => $product->name,
                     'product_image' => $product->image,
-                    'product_quantity' => $wish_list->quantity,
+                    'product_quantity' => $wishList->quantity,
                     'product_price' => $product->price,
                     'product_discount' => $product->discount,
                 ];
                 session()->put('cart', $cart);
             }
-            $wish_list->forceDelete();
+            $wishList->forceDelete();
         }
         return back()->with('success', 'All products in wish list were added to the shopping cart.');
     }

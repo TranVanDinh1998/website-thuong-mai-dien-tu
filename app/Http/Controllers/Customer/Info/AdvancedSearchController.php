@@ -1,25 +1,12 @@
 <?php
 
-namespace App\Http\Controllers\Pages\Info;
+namespace App\Http\Controllers\Customer\Info;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use App\Product;
-use App\Category;
-use App\Collection;
-use App\CollectionProduct;
-use App\Order;
-use App\ProductImage;
-use App\Address;
-use App\District;
-use App\Province;
-use App\Ward;
-use App\Review;
-use App\WishList;
-use App\OrderDetail;
-use App\Tag;
-use App\User;
-use App\Producer;
+use App\Models\Product;
+use App\Models\Collection;
+use App\Models\Producer;
 use Illuminate\Auth\Events\Validated;
 use Illuminate\Http\Request;
 use Illuminate\Support\MessageBag;
@@ -30,6 +17,12 @@ use Illuminate\Support\Facades\Validator;
 
 class AdvancedSearchController extends Controller
 {
+    public function __construct(Product $product, Collection $collection, Producer $producer)
+    {
+        $this->product = $product;
+        $this->collection = $collection;
+        $this->producer = $producer;
+    }
 
     public function index(Request $request)
     {
@@ -66,7 +59,7 @@ class AdvancedSearchController extends Controller
         $producer_id_list = null;
         $producer_id_list = $request->producer_id_list;
 
-        return view('pages.information.advanced_search.index', [
+        return view('pages.customer.information.advanced_search.index', [
             // cart
             'shopping_carts' => $shopping_carts,
             'count_cart' => $count_cart,
@@ -105,35 +98,17 @@ class AdvancedSearchController extends Controller
                 }
             }
         }
-        //collections
-        $collections = Collection::notDelete()->active()->get();
         // view
         $recent_views = session()->get('recent_views');
 
-        // products
-        // $products = Product::notDelete()->active()
-        // ->search($request)->sort($request)
-        // ->price($request)
-        // ->producer($request)
-        // ->category($request);
-
-
-
-        // if ($request->has('producer_id_list') && $request->producer_id_list != null) {
-        //     $products = $products->whereIn('producer_id',$request->producer_id_list);
-        // }
-        // 
-
-        $products = Product::notDelete()->active()->search($request)->sort($request)
+        //products
+        $products = $this->product->active()->search($request)->sort($request)
         ->massCategory($request)
         ->massProducer($request)
         ->price($request);
 
-        // print_r($request->all());
-        $count_product = null;
-        $count_product = $products->get()->count();
-        // producer
-        $producers = Producer::notDelete()->active()->get();
+        //producer
+        $producers = $this->producer->active()->get();
         $producers_record_count = array();
         foreach ($producers as $producer) {
             $producers_record_count[$producer->id] = 0;
@@ -154,18 +129,8 @@ class AdvancedSearchController extends Controller
                 }
             }
         }
-
         // paginate
-        if ($request->has('view')) {
-            $products = $products->paginate($request->view);
-        } else {
-            $products = $products->paginate(15);
-        }
-
-        // foreach ($products as $product) {
-        //     echo $product->id.'-' . $product->name.'<br>';
-        // }
-
+        $products = $request->has('view') ? $products->paginate($request->view) : $products->paginate(12);
 
 
         // filter
@@ -183,19 +148,7 @@ class AdvancedSearchController extends Controller
         $category_id_list = $request->category_id_list;
         $producer_id_list = null;
         $producer_id_list = $request->producer_id_list;
-        // echo 'search - '.$search.'<br>';
-        // echo 'sort -'.$sort.'<br>';
-        // echo 'view -'.$view.'<br>';
-        // echo 'producer_id -'.$producer_id.'<br>';
-        // echo 'price_from -'.$price_from.'<br>';
-        // echo 'price_to -'.$price_to.'<br>';
-        // echo 'category id list <br>';
-        // foreach ($category_id_list as $category_id) {
-        //     echo 'category_id_list -'.$category_id .'<br>';
-        // }
-        // foreach ($producer_id_list as $producer_id) {
-        //     echo 'producer_id_list -'.$producer_id. '<br>';
-        // }
+
         // compare
         $compare = session()->get('compare');
         $count_compare = null;
@@ -204,17 +157,14 @@ class AdvancedSearchController extends Controller
                 $count_compare += 1;
             }
         }
-        return view('pages.information.advanced_search.result', [
+        return view('pages.customer.information.advanced_search.result', [
             // cart
             'shopping_carts' => $shopping_carts,
             'count_cart' => $count_cart,
             'total_cart' => $total_cart,
             'discount_cart' => $discount_cart,
-            // collections
-            'search_collections' => $collections,
             // product
             'products' => $products,
-            'count_product' => $count_product,
             //producer
             'producers_record_count' => $producers_record_count,
             // filter

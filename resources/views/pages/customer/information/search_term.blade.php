@@ -1,5 +1,5 @@
-@extends('layout')
-@section('title', 'Search terms - Electronical Store')
+@extends('layouts.customer.index')
+@section('title', 'Thẻ tìm kiếm')
 @section('content')
     <!-- main-container -->
     <div class="main-container col2-right-layout">
@@ -8,13 +8,13 @@
                 <section class="col-main col-sm-9 wow">
                     <div class="my-account">
                         <div class="page-title">
-                            <h2>Search terms</h2>
+                            <h2>Các thẻ tìm kiếm</h2>
                         </div>
                         <div class="col-2 registered-users">
                             <div class="content">
                                 <div class="toolbar">
                                     <div id="sort-by">
-                                        <label class="left">Sort By: </label>
+                                        <label class="left">Sắp xếp theo: </label>
                                         <ul>
                                             <li>
                                                 <a
@@ -23,10 +23,10 @@
                                                 </a>
                                                 <ul>
                                                     <li><a
-                                                            href="{{ route('info.search_terms', [ 'sort' => 1, 'view' => $view]) }}">Name</a>
+                                                            href="{{ route('info.search_terms', [ 'sort' => 1, 'view' => $view]) }}">Tên</a>
                                                     </li>
                                                     <li><a
-                                                            href="{{ route('info.search_terms', [ 'sort' => 2, 'view' => $view]) }}">Popular</a>
+                                                            href="{{ route('info.search_terms', [ 'sort' => 2, 'view' => $view]) }}">Mức độ phổ biến</a>
                                                     </li>
                                                 </ul>
                                             </li>
@@ -35,9 +35,9 @@
                                                 style="color:#999;font-size:11px;" class="glyphicon glyphicon-arrow-up"></span></a>
                                     </div>
                                     <div class="pager" style="float: left">
-                                        <p class="amount"><strong>{{ $count_tags }} item(s)<strong></p>
+                                        <p class="amount"><strong>{{ $count_tags }} thẻ<strong></p>
                                         <div id="limiter">
-                                            <label>View: </label>
+                                            <label>Hiển thị: </label>
                                             <ul>
                                                 <li><a href="{{ route('info.search_terms', ['sort' => $sort,'view' => 15]) }}">15<span
                                                             class="right-arrow"></span>
@@ -76,7 +76,7 @@
                         </div>
                     </div>
                 </section>
-                @include('information_side_bar');
+                @include('components.customer.sidebar.info')
             </div>
         </div>
     </div>

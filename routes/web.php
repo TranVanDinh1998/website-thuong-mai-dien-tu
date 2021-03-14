@@ -38,6 +38,7 @@ use App\Http\Controllers\Customer\Account\InformationController;
 use App\Http\Controllers\Customer\Account\AddressController;
 use App\Http\Controllers\Customer\Account\OrderController as CustomerOrderController;
 use App\Http\Controllers\Customer\Account\PasswordController;
+use App\Http\Controllers\Customer\Account\ReviewController as CustomerReviewController;
 // auth
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
@@ -108,8 +109,10 @@ Route::group(['prefix' => 'information', 'as' => 'info.'], function () {
         Route::get('/index',  [AdvancedSearchController::class, 'index'])->name('index');
         Route::get('/result',  [AdvancedSearchController::class, 'result'])->name('result');
     });
-    Route::get('/contact-us', [ContactUsController::class, 'index'])->name('contact_us');
-    Route::post('/contact-us', [ContactUsController::class, 'contact']);
+    Route::group(['prefix' => 'contact-us', 'as' => 'contact_us.'], function () {
+        Route::get('/', [ContactUsController::class, 'index'])->name('index');
+        Route::post('/', [ContactUsController::class, 'store'])->name('store');
+    });
     Route::get('/about-us', [AboutUsController::class, 'index'])->name('about_us');
     Route::group(['prefix' => 'site-map', 'as' => 'site_map.'], function () {
         Route::get('/index', [SiteMapController::class, 'category'])->name('category');
@@ -152,8 +155,8 @@ Route::group(['prefix' => 'account', 'as' => 'account.'], function () {
 
     // reivew
     Route::group(['prefix' => 'review','as'=>'review.'], function () {
-        Route::post('/', [ReviewController::class, 'review'])->name('review');
-        Route::get('/', [ReviewController::class, 'index'])->name('index');
+        Route::post('/', [CustomerReviewController::class, 'store'])->name('store');
+        Route::get('/', [CustomerReviewController::class, 'index'])->name('index');
     });
 
     // order

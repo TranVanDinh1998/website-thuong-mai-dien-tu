@@ -58,6 +58,9 @@ class User extends Authenticatable
     public function address() {
         return $this->belongsTo(Address::class,'shipping_address_id');
     }
+    public function wishLists() {
+        return $this->hasMany(WishList::class);
+    }
     // scope
     public function scopeActive($q)
     {
